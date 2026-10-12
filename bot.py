@@ -123,6 +123,7 @@ def publish_one(key: str, channel_id: str, service: str, text: str,
         'dueAt':due_at,
         'assets':[{'image': {'url':image_url}}],
         'aiAssisted':False,
+        'needsApproval':False,
     }
     if metadata:
         post_input['metadata'] = metadata
