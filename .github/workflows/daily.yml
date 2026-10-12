@@ -1,0 +1,55 @@
+name: 麺処松もり｜毎朝9時の営業案内
+
+on:
+  schedule:
+    - cron: '13 17 * * *'
+  workflow_dispatch:
+    inputs:
+      preview_only:
+        description: '安全なテスト（true=投稿しない）'
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: matsumori-daily
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Japanese serif fonts and libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          pip install -r requirements.txt
+      - name: Render today's image
+        run: python bot.py prepare
+      - name: Commit public image for Buffer
+        if: github.event_name == 'schedule' || inputs.preview_only == false
+        run: |
+          git config user.name 'matsumori-ai-staff[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/posts/
+          git diff --cached --quiet || (git commit -m 'Image for today' && git push)
+      - name: Schedule today's 09:00 JST posts
+        if: github.event_name == 'schedule' || inputs.preview_only == false
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: python bot.py schedule
+      - name: Save delivery request log
+        if: always() && (github.event_name == 'schedule' || inputs.preview_only == false)
+        run: |
+          git add logs/ 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m 'Log of Buffer schedule' && git push)
