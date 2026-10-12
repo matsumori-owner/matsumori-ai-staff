@@ -38,19 +38,60 @@ def status_for(day: date) -> str:
     return status
 
 
+def menu_for(day: date) -> tuple[list[str], list[str]]:
+    """Regular menu plus dated seasonal additions; unknown entries fail safely."""
+    conf = json.loads(Path('menu.json').read_text(encoding='utf-8'))
+    noodles = conf['regular_noodles']
+    rice = conf['regular_rice']
+    if not isinstance(noodles, list) or not isinstance(rice, list):
+        raise ValueError('Menu must contain lists of items')
+    if any(not isinstance(x, str) or not x.strip() for x in noodles + rice):
+        raise ValueError('Menu items must be nonempty strings')
+    seasonal = conf.get('seasonal', [])
+    for item in seasonal:
+        if not isinstance(item, dict) or not all(k in item for k in ('name','start','end')):
+            raise ValueError('Seasonal menu requires name, start, end')
+        start, end = date.fromisoformat(item['start']), date.fromisoformat(item['end'])
+        if end < start:
+            raise ValueError('Seasonal menu end before start')
+        if start <= day <= end:
+            noodles.append(item['name'] + '【季節限定】')
+    return noodles, rice
+
+
 def caption(day: date, status: str, service: str) -> str:
-    heading = f'【{day.month}月{day.day}日（{JP_DAYS[day.weekday()]}曜日）】'
+    heading = f'{day.month}月{day.day}日（{JP_DAYS[day.weekday()]}）'
     if status == 'open':
-        text = (f'{heading}\n\n本日、麺処 松もりは営業いたします。\n\n'
-                '営業時間 11:00〜15:00\nラストオーダー 14:30\n\n'
-                '本日も皆さまのお越しを心よりお待ちしております。')
+        noodles, rice = menu_for(day)
+        menu_text = '\\n'.join(noodles) + '\\n\\n' + '\\n'.join(rice)
+        if service == 'twitter':
+            text = (f'{heading} 本日営業！\\n'
+                    '11:00〜15:00（L.O.14:30）\\n\\n'
+                    + '／'.join(noodles) + '\\n'
+                    + '／'.join(rice) + '\\n\\n'
+                    '混雑・受付状況はInstagramストーリーズで確認できます。')
+        elif service == 'googlebusiness':
+            text = (f'本日は{heading}、\\n11:00〜15:00で営業いたします。\\n'
+                    '（L.O.14:30）\\n\\n【本日の提供メニュー】\\n\\n'
+                    + menu_text + '\\n\\n'
+                    '営業中の混雑状況・受付状況は、公式Instagram（@md_matsumori）の'
+                    'ストーリーズで随時お知らせしています。\\n\\n'
+                    '山までお越しいただく前に、ぜひご確認ください。')
+        else:
+            text = (f'本日は{heading}、\\n11:00〜15:00で営業いたします。\\n'
+                    '（L.O.14:30）\\n\\n本日のメニューは\\n\\n'
+                    + menu_text + '\\n\\nです。\\n\\n'
+                    '営業中の混雑状況・受付状況は、\\n'
+                    'Instagramストーリーズで\\n随時お知らせしています。\\n\\n'
+                    '山までお越しいただく前に、\\nぜひご確認ください。')
     else:
-        text = (f'{heading}\n\n本日、麺処 松もりは定休日です。\n\n'
+        text = (f'【{heading}】\\n\\n本日、麺処 松もりは定休日です。\\n\\n'
                 '次回営業日に、また皆さまにお会いできることを楽しみにしております。')
     if service != 'googlebusiness':
-        text += '\n\n' + HASHTAGS
+        text += '\\n\\n' + HASHTAGS
+    if service == 'twitter' and len(text) > 280:
+        raise ValueError('X caption exceeds 280 characters; adjust menu rather than truncating')
     return text
-
 
 def graphql(api_key: str, query: str, variables: dict | None = None) -> dict:
     response = requests.post(URL, json={'query':query, 'variables':variables or {}},
