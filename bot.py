@@ -207,6 +207,11 @@ def make_image(day: date) -> Path:
 
 
 def schedule(day: date, dry_run: bool = False) -> None:
+    settings = json.loads(Path('settings.json').read_text(encoding='utf-8'))
+    start_day = date.fromisoformat(settings['first_publish_date'])
+    if day < start_day:
+        print(f'Before official reopening {start_day}: no posts will be sent to Buffer.')
+        return
     if Path('PAUSE').exists():
         print('PAUSE file found. No posts will be sent to Buffer.')
         return
