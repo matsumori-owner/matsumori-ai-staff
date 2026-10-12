@@ -1,0 +1,57 @@
+name: Buffer下書きテスト（SNS公開なし）
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install requirements
+        run: pip install -r requirements.txt
+      - name: Create image drafts without publishing
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import date
+          from bot import graphql, find_channels, caption, asset_path, status_for
+
+          day = date(2026, 10, 12)  # Already verified image; drafts only.
+          image_url = f"https://raw.githubusercontent.com/{os.environ['GITHUB_REPOSITORY']}/main/{asset_path(day)}"
+          api_key = os.environ['BUFFER_API_KEY']
+          _, channels = find_channels(api_key)
+          query = '''mutation($input: CreatePostInput!) {
+            createPost(input:$input) {
+              ... on PostActionSuccess { post { id status } }
+              ... on MutationError { message }
+            }
+          }'''
+          for service, channel in channels.items():
+              data = {
+                  'channelId': channel['id'],
+                  'text': '[非公開テスト用・投稿しない]\n' + caption(day, status_for(day), service),
+                  'schedulingType': 'automatic',
+                  'mode': 'addToQueue',
+                  'saveToDraft': True,
+                  'needsApproval': False,
+                  'assets': [{'image': {'url': image_url}}],
+              }
+              if service == 'instagram':
+                  data['metadata'] = {'instagram': {'type': 'post', 'shouldShareToFeed': True}}
+              elif service == 'googlebusiness':
+                  data['metadata'] = {'google': {'type': 'whats_new'}}
+              result = graphql(api_key, query, {'input': data})['createPost']
+              if result.get('message') or result.get('post', {}).get('status') != 'draft':
+                  raise RuntimeError(f'{service}: draft failed: {result}')
+              print(f'{service}: DRAFT SAVED (NOT PUBLISHED), id={result["post"]["id"]}')
+          PY
