@@ -1,0 +1,54 @@
+name: 松もりSNS安全点検（投稿なし）
+
+on:
+  push:
+    paths:
+      - 'bot.py'
+      - 'render.py'
+      - 'menu.json'
+      - 'settings.json'
+      - 'overrides.json'
+      - '.github/workflows/safety-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install requirements
+        run: pip install -r requirements.txt
+      - name: Validate dates, menus and captions without SNS posting
+        run: |
+          python -m py_compile bot.py render.py
+          python - <<'PY'
+          from datetime import date
+          import json
+          from pathlib import Path
+          from bot import status_for, caption, menu_for, schedule
+          settings = json.loads(Path("settings.json").read_text(encoding="utf-8"))
+          assert settings["first_publish_date"] == "2026-10-21"
+          assert Path("PAUSE").exists(), "Keep PAUSE while testing"
+          assert status_for(date(2026,10,20)) == "closed"
+          assert status_for(date(2026,10,21)) == "open"
+          noodles, rice = menu_for(date(2026,10,21))
+          assert noodles == ["甘南備らーめん", "甘南備くりーむ", "甘南備そいそい"]
+          assert rice == ["ほっこり丼", "うめ〜ごはん"]
+          for service in ["twitter","instagram","googlebusiness"]:
+              text = caption(date(2026,10,21), "open", service)
+              for item in noodles + rice:
+                  assert item in text
+              assert "Instagram" in text
+              assert ("#麵処松もり" in text) == (service != "googlebusiness")
+              assert "営業" in text
+              assert "定休日" in caption(date(2026,10,22), "closed", service)
+          # This uses the date gate and must never contact Buffer.
+          schedule(date(2026,10,20))
+          print("SAFE CHECK PASSED: Posting cannot start before October 21.")
+          PY
