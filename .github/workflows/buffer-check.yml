@@ -1,0 +1,26 @@
+name: Buffer接続テスト（投稿なし）
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Check Buffer connections
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: |
+          python -c "import os; from bot import find_channels; _, ch = find_channels(os.environ['BUFFER_API_KEY']); print('Connected: ' + ', '.join(ch.keys()))"
