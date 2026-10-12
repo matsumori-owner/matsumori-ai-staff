@@ -63,32 +63,32 @@ def caption(day: date, status: str, service: str) -> str:
     heading = f'{day.month}月{day.day}日（{JP_DAYS[day.weekday()]}）'
     if status == 'open':
         noodles, rice = menu_for(day)
-        menu_text = '\\n'.join(noodles) + '\\n\\n' + '\\n'.join(rice)
+        menu_text = '\n'.join(noodles) + '\n\n' + '\n'.join(rice)
         if service == 'twitter':
-            text = (f'{heading} 本日営業！\\n'
-                    '11:00〜15:00（L.O.14:30）\\n\\n'
-                    + '／'.join(noodles) + '\\n'
-                    + '／'.join(rice) + '\\n\\n'
+            text = (f'{heading} 本日営業！\n'
+                    '11:00〜15:00（L.O.14:30）\n\n'
+                    + '／'.join(noodles) + '\n'
+                    + '／'.join(rice) + '\n\n'
                     '混雑・受付状況はInstagramストーリーズで確認できます。')
         elif service == 'googlebusiness':
-            text = (f'本日は{heading}、\\n11:00〜15:00で営業いたします。\\n'
-                    '（L.O.14:30）\\n\\n【本日の提供メニュー】\\n\\n'
-                    + menu_text + '\\n\\n'
+            text = (f'本日は{heading}、\n11:00〜15:00で営業いたします。\n'
+                    '（L.O.14:30）\n\n【本日の提供メニュー】\n\n'
+                    + menu_text + '\n\n'
                     '営業中の混雑状況・受付状況は、公式Instagram（@md_matsumori）の'
-                    'ストーリーズで随時お知らせしています。\\n\\n'
+                    'ストーリーズで随時お知らせしています。\n\n'
                     '山までお越しいただく前に、ぜひご確認ください。')
         else:
-            text = (f'本日は{heading}、\\n11:00〜15:00で営業いたします。\\n'
-                    '（L.O.14:30）\\n\\n本日のメニューは\\n\\n'
-                    + menu_text + '\\n\\nです。\\n\\n'
-                    '営業中の混雑状況・受付状況は、\\n'
-                    'Instagramストーリーズで\\n随時お知らせしています。\\n\\n'
-                    '山までお越しいただく前に、\\nぜひご確認ください。')
+            text = (f'本日は{heading}、\n11:00〜15:00で営業いたします。\n'
+                    '（L.O.14:30）\n\n本日のメニューは\n\n'
+                    + menu_text + '\n\nです。\n\n'
+                    '営業中の混雑状況・受付状況は、\n'
+                    'Instagramストーリーズで\n随時お知らせしています。\n\n'
+                    '山までお越しいただく前に、\nぜひご確認ください。')
     else:
-        text = (f'【{heading}】\\n\\n本日、麺処 松もりは定休日です。\\n\\n'
+        text = (f'【{heading}】\n\n本日、麺処 松もりは定休日です。\n\n'
                 '次回営業日に、また皆さまにお会いできることを楽しみにしております。')
     if service != 'googlebusiness':
-        text += '\\n\\n' + HASHTAGS
+        text += '\n\n' + HASHTAGS
     if service == 'twitter' and len(text) > 280:
         raise ValueError('X caption exceeds 280 characters; adjust menu rather than truncating')
     return text
